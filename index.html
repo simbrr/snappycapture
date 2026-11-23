@@ -782,6 +782,8 @@
       gap: 12px;
     }
 
+    .sc-dl-count-inline { font-weight: 600; color: var(--sc-ink); font-variant-numeric: tabular-nums; }
+    .sc-dl-count::before, .sc-dl-count-inline::before { content: "↓ "; }
     .sc-dl-count { margin-top: 10px; font-size: 13px; font-weight: 600; color: var(--sc-sub); font-variant-numeric: tabular-nums; }
 
     /* Download Confirmation Modal */
@@ -914,6 +916,8 @@
             <span data-version="v{v}">v0.1.0</span>
             <span>·</span>
             <span>No account or cloud lock-in</span>
+            <span class="js-dl-count-sep" hidden>·</span>
+            <span class="sc-dl-count-inline js-dl-count" hidden></span>
           </div>
         </div>
 
@@ -1269,7 +1273,7 @@
                 Download SnappyCapture.dmg
               </a>
             </div>
-            <div class="sc-dl-count" id="dlCount" hidden></div>
+            <div class="sc-dl-count js-dl-count" hidden></div>
           </div>
 
           <div class="sc-dl-steps">
@@ -1424,11 +1428,10 @@
             document.getElementById("dlModalFile").textContent = `${DOWNLOAD_CONFIG.filename} · ${size}`;
             document.querySelectorAll("[data-version]").forEach((el) => { el.textContent = el.dataset.version.replace("{v}", version); });
           }
-          if (total > 0) {
-            const el = document.getElementById("dlCount");
-            el.textContent = `${total.toLocaleString("en-US")} download${total === 1 ? "" : "s"} so far`;
-            el.hidden = false;
-          }
+          // Shown from the first load, including 0; hidden only when GitHub can't be reached.
+          const label = `${total.toLocaleString("en-US")} download${total === 1 ? "" : "s"}`;
+          document.querySelectorAll(".js-dl-count").forEach((el) => { el.textContent = label; el.hidden = false; });
+          document.querySelectorAll(".js-dl-count-sep").forEach((el) => { el.hidden = false; });
         })
         .catch(() => {});
 
