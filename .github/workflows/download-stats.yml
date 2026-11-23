@@ -1,0 +1,36 @@
+# Records the download count of every release once a day, so there is a history
+# (GitHub itself only keeps a running total).
+name: Download stats
+
+on:
+  schedule:
+    - cron: "17 3 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  record:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Append today's counts
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          file=stats/downloads.csv
+          [ -f "$file" ] || echo "date,release,asset,downloads" > "$file"
+          today=$(date -u +%F)
+          grep -q "^$today," "$file" && { echo "Already recorded today"; exit 0; }
+          gh api "repos/${{ github.repository }}/releases?per_page=100" \
+            --jq '.[] | .tag_name as $t | .assets[] | [$t, .name, .download_count] | @csv' \
+            | sed "s/^/$today,/" >> "$file"
+          tail -n 5 "$file"
+      - name: Commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add stats/downloads.csv
+          git diff --cached --quiet || git commit -m "Download stats for $(date -u +%F)"
+          git push

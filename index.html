@@ -1,0 +1,1450 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SnappyCapture — Native macOS Screenshots, Recording &amp; Cutroom Editor</title>
+  <meta name="description" content="A fast, native macOS 15+ menu bar app for screenshots, scrolling capture, OCR, annotation, and Cutroom screen recordings. Built in pure Swift with zero third-party dependencies." />
+  <link rel="icon" type="image/png" href="./assets/app-icon.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+
+    body {
+      margin: 0;
+      padding: 0;
+      background: var(--background, #fafafa);
+      color: var(--foreground, #18181b);
+      font-family: "Inter", -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif;
+      -webkit-font-smoothing: antialiased;
+      text-rendering: optimizeLegibility;
+      line-height: 1.5;
+    }
+
+    /* Scoped SnappyCapture Design System Tokens (mirrors Sources/SnappyCapture/UI/DesignSystem.swift) */
+    .sc-page {
+      --sc-bg: #fafafa;
+      --sc-surface: #ffffff;
+      --sc-muted: #f4f4f5;
+      --sc-border: #e4e4e7;
+      --sc-border-strong: #d4d4d8;
+      --sc-ink: #18181b;
+      --sc-sub: #52525b;
+      --sc-faint: #71717a;
+      --sc-accent: #295cd4;
+      --sc-accent-hover: #1e4ec2;
+      --sc-accent-soft: rgba(41, 92, 212, 0.10);
+      --sc-accent-ring: rgba(41, 92, 212, 0.28);
+      --sc-green: #22c55e;
+      --sc-green-soft: rgba(34, 197, 94, 0.12);
+      --sc-amber: #f59e0b;
+      --sc-amber-soft: rgba(245, 158, 11, 0.12);
+      --sc-rose: #ef4444;
+      --sc-rose-soft: rgba(239, 68, 68, 0.12);
+      --sc-violet: #8b5cf6;
+      --sc-violet-soft: rgba(139, 92, 246, 0.12);
+      --sc-cyan: #06b6d4;
+      --sc-cyan-soft: rgba(6, 182, 212, 0.12);
+      --sc-glass: rgba(250, 250, 250, 0.84);
+      --sc-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+      --sc-shadow-md: 0 8px 28px rgba(0, 0, 0, 0.07), 0 1px 3px rgba(0, 0, 0, 0.05);
+      --sc-shadow-lg: 0 24px 64px rgba(0, 0, 0, 0.13), 0 4px 16px rgba(0, 0, 0, 0.06);
+      --sc-hero-glow: radial-gradient(62% 52% at 50% 0%, rgba(41, 92, 212, 0.11) 0%, rgba(41, 92, 212, 0) 74%);
+      --sc-mono: "JetBrains Mono", "SF Mono", ui-monospace, SFMono-Regular, monospace;
+
+      background: var(--sc-bg);
+      color: var(--sc-ink);
+      min-width: 0;
+      overflow-x: hidden;
+      transition: background-color 180ms ease, color 180ms ease;
+    }
+
+    .sc-page[data-sc-theme="dark"] {
+      --sc-bg: #111113;
+      --sc-surface: #19191d;
+      --sc-muted: #222228;
+      --sc-border: #2e2e36;
+      --sc-border-strong: #3f3f49;
+      --sc-ink: #f4f4f5;
+      --sc-sub: #a1a1aa;
+      --sc-faint: #71717a;
+      --sc-accent: #3b71f0;
+      --sc-accent-hover: #4e80f5;
+      --sc-accent-soft: rgba(59, 113, 240, 0.16);
+      --sc-accent-ring: rgba(59, 113, 240, 0.36);
+      --sc-green: #22c55e;
+      --sc-green-soft: rgba(34, 197, 94, 0.16);
+      --sc-amber-soft: rgba(245, 158, 11, 0.16);
+      --sc-rose-soft: rgba(239, 68, 68, 0.16);
+      --sc-violet-soft: rgba(139, 92, 246, 0.16);
+      --sc-cyan-soft: rgba(6, 182, 212, 0.16);
+      --sc-glass: rgba(17, 17, 19, 0.84);
+      --sc-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35);
+      --sc-shadow-md: 0 12px 32px rgba(0, 0, 0, 0.42), 0 1px 3px rgba(0, 0, 0, 0.3);
+      --sc-shadow-lg: 0 28px 72px rgba(0, 0, 0, 0.6), 0 6px 20px rgba(0, 0, 0, 0.4);
+      --sc-hero-glow: radial-gradient(62% 52% at 50% 0%, rgba(59, 113, 240, 0.18) 0%, rgba(59, 113, 240, 0) 74%);
+    }
+
+    a { color: inherit; text-decoration: none; }
+    button { font-family: inherit; cursor: pointer; }
+    code { font-family: var(--sc-mono); font-size: 0.9em; }
+
+    .sc-container {
+      width: 100%;
+      max-width: 1080px;
+      margin: 0 auto;
+      padding: 0 24px;
+    }
+
+    /* Sticky Navbar */
+    .sc-nav {
+      position: sticky;
+      top: 0;
+      z-index: 40;
+      background: var(--sc-glass);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border-bottom: 1px solid var(--sc-border);
+    }
+
+    .sc-nav-inner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 60px;
+      gap: 16px;
+    }
+
+    .sc-brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 700;
+      font-size: 15px;
+      letter-spacing: -0.02em;
+      color: var(--sc-ink);
+    }
+
+    .sc-brand-icon {
+      width: 28px;
+      height: 28px;
+      border-radius: 7px;
+      object-fit: cover;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.14);
+      display: block;
+    }
+
+    .sc-ver-badge {
+      font-family: var(--sc-mono);
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--sc-sub);
+      background: var(--sc-muted);
+      border: 1px solid var(--sc-border);
+      padding: 2px 6px;
+      border-radius: 6px;
+    }
+
+    .sc-nav-links {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .sc-nav-links a {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--sc-sub);
+      padding: 6px 11px;
+      border-radius: 7px;
+      transition: background 140ms ease, color 140ms ease;
+    }
+
+    .sc-nav-links a:hover {
+      background: var(--sc-muted);
+      color: var(--sc-ink);
+    }
+
+    .sc-nav-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* Buttons */
+    .sc-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      padding: 0 14px;
+      height: 36px;
+      border: 1px solid transparent;
+      transition: background 140ms ease, border-color 140ms ease, transform 120ms ease, box-shadow 140ms ease;
+      white-space: nowrap;
+    }
+
+    .sc-btn:active { transform: translateY(0.5px); }
+
+    .sc-btn-primary {
+      background: var(--sc-accent);
+      color: #ffffff;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.14), inset 0 1px 0 rgba(255, 255, 255, 0.18);
+    }
+
+    .sc-btn-primary:hover {
+      background: var(--sc-accent-hover);
+      box-shadow: 0 6px 20px var(--sc-accent-ring);
+    }
+
+    .sc-btn-outline {
+      background: var(--sc-surface);
+      color: var(--sc-ink);
+      border-color: var(--sc-border);
+      box-shadow: var(--sc-shadow-sm);
+    }
+
+    .sc-btn-outline:hover {
+      background: var(--sc-muted);
+      border-color: var(--sc-border-strong);
+    }
+
+    .sc-btn-lg {
+      height: 46px;
+      padding: 0 22px;
+      font-size: 14.5px;
+      border-radius: 10px;
+    }
+
+    .sc-icon-btn {
+      width: 34px;
+      height: 34px;
+      padding: 0;
+      border-radius: 8px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--sc-surface);
+      border: 1px solid var(--sc-border);
+      color: var(--sc-sub);
+      transition: background 140ms ease, color 140ms ease;
+    }
+
+    .sc-icon-btn:hover {
+      background: var(--sc-muted);
+      color: var(--sc-ink);
+    }
+
+    /* Hero */
+    .sc-hero {
+      position: relative;
+      padding: 58px 0 46px;
+      background-image: var(--sc-hero-glow);
+    }
+
+    .sc-hero-top {
+      text-align: center;
+      max-width: 740px;
+      margin: 0 auto 38px;
+    }
+
+    .sc-eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 5px 12px;
+      border-radius: 999px;
+      background: var(--sc-surface);
+      border: 1px solid var(--sc-border);
+      box-shadow: var(--sc-shadow-sm);
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--sc-sub);
+      margin-bottom: 20px;
+    }
+
+    .sc-dot-green {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--sc-green);
+      box-shadow: 0 0 0 3px var(--sc-green-soft);
+      flex-shrink: 0;
+    }
+
+    .sc-hero h1 {
+      margin: 0 0 16px;
+      font-size: clamp(34px, 5vw, 54px);
+      font-weight: 800;
+      letter-spacing: -0.038em;
+      line-height: 1.07;
+      color: var(--sc-ink);
+    }
+
+    .sc-hero-lead {
+      margin: 0 auto 28px;
+      max-width: 600px;
+      font-size: 16.5px;
+      line-height: 1.6;
+      color: var(--sc-sub);
+    }
+
+    .sc-cta-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .sc-cta-sub {
+      display: inline-flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: center;
+      gap: 8px 14px;
+      font-size: 12px;
+      color: var(--sc-faint);
+    }
+
+    .sc-cta-meta-pill {
+      font-family: var(--sc-mono);
+      font-size: 11px;
+      font-weight: 500;
+      padding: 2px 7px;
+      border-radius: 5px;
+      background: rgba(255, 255, 255, 0.16);
+      color: rgba(255, 255, 255, 0.94);
+    }
+
+    /* Real App Screenshots Stage */
+    .sc-stage-tabs {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 18px;
+    }
+
+    .sc-segmented {
+      display: inline-flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 4px;
+      padding: 4px;
+      border-radius: 10px;
+      background: var(--sc-muted);
+      border: 1px solid var(--sc-border);
+    }
+
+    .sc-seg-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      height: 32px;
+      padding: 0 14px;
+      border: 1px solid transparent;
+      border-radius: 7px;
+      background: transparent;
+      color: var(--sc-sub);
+      font-size: 12.5px;
+      font-weight: 600;
+      transition: all 140ms ease;
+    }
+
+    .sc-seg-btn:hover { color: var(--sc-ink); }
+
+    .sc-seg-btn[aria-selected="true"] {
+      background: var(--sc-surface);
+      color: var(--sc-ink);
+      border-color: var(--sc-border);
+      box-shadow: var(--sc-shadow-sm);
+    }
+
+    .sc-stage-panel { display: none; }
+    .sc-stage-panel.is-visible { display: block; }
+
+    .sc-shot-shell {
+      background: var(--sc-muted);
+      border: 1px solid var(--sc-border);
+      border-radius: 16px;
+      padding: 18px;
+      box-shadow: var(--sc-shadow-md);
+    }
+
+    .sc-shot-frame {
+      border-radius: 11px;
+      overflow: hidden;
+      border: 1px solid var(--sc-border);
+      box-shadow: var(--sc-shadow-lg);
+      background: var(--sc-surface);
+    }
+
+    .sc-shot-img {
+      display: block;
+      width: 100%;
+      height: auto;
+    }
+
+    .sc-shot-stack {
+      display: grid;
+      gap: 14px;
+      justify-items: center;
+    }
+
+    .sc-shot-stack .sc-shot-frame {
+      width: 100%;
+    }
+
+    .sc-shot-caption {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px 16px;
+      margin-top: 12px;
+      padding: 0 4px;
+      font-size: 12.5px;
+      color: var(--sc-sub);
+    }
+
+    .sc-shot-caption strong { color: var(--sc-ink); }
+
+    /* Theme-aware image switching */
+    .sc-img-dark { display: none; }
+    .sc-page[data-sc-theme="dark"] .sc-img-light { display: none; }
+    .sc-page[data-sc-theme="dark"] .sc-img-dark { display: block; }
+
+    /* Sections */
+    .sc-section {
+      padding: 64px 0;
+      border-top: 1px solid var(--sc-border);
+    }
+
+    .sc-section-head {
+      max-width: 620px;
+      margin-bottom: 34px;
+    }
+
+    .sc-kicker {
+      font-family: var(--sc-mono);
+      font-size: 11.5px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--sc-accent);
+      margin-bottom: 8px;
+    }
+
+    .sc-section-head h2 {
+      margin: 0 0 10px;
+      font-size: clamp(24px, 3.2vw, 34px);
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      line-height: 1.15;
+    }
+
+    .sc-section-head p {
+      margin: 0;
+      font-size: 15px;
+      color: var(--sc-sub);
+    }
+
+    /* Bento Feature Grid */
+    .sc-bento {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+    }
+
+    .sc-card {
+      background: var(--sc-surface);
+      border: 1px solid var(--sc-border);
+      border-radius: 12px;
+      padding: 20px;
+      box-shadow: var(--sc-shadow-sm);
+      transition: border-color 150ms ease, box-shadow 150ms ease, transform 150ms ease;
+    }
+
+    .sc-card:hover {
+      border-color: var(--sc-border-strong);
+      box-shadow: var(--sc-shadow-md);
+      transform: translateY(-1px);
+    }
+
+    .sc-cat-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: 9px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 14px;
+    }
+
+    .sc-ic-blue { background: var(--sc-accent-soft); color: var(--sc-accent); }
+    .sc-ic-violet { background: var(--sc-violet-soft); color: var(--sc-violet); }
+    .sc-ic-green { background: var(--sc-green-soft); color: var(--sc-green); }
+    .sc-ic-amber { background: var(--sc-amber-soft); color: var(--sc-amber); }
+    .sc-ic-rose { background: var(--sc-rose-soft); color: var(--sc-rose); }
+    .sc-ic-cyan { background: var(--sc-cyan-soft); color: var(--sc-cyan); }
+
+    .sc-card h3 {
+      margin: 0 0 7px;
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: -0.015em;
+    }
+
+    .sc-card p {
+      margin: 0 0 12px;
+      font-size: 13.5px;
+      line-height: 1.55;
+      color: var(--sc-sub);
+    }
+
+    .sc-tag-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .sc-tag {
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--sc-sub);
+      background: var(--sc-muted);
+      border: 1px solid var(--sc-border);
+      border-radius: 6px;
+      padding: 2px 7px;
+    }
+
+    /* Cutroom Split Spotlight */
+    .sc-spotlight {
+      display: grid;
+      grid-template-columns: 1.05fr 0.95fr;
+      gap: 28px;
+      align-items: center;
+    }
+
+    .sc-check-list {
+      list-style: none;
+      padding: 0;
+      margin: 18px 0 0;
+      display: grid;
+      gap: 11px;
+    }
+
+    .sc-check-list li {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      font-size: 14px;
+      color: var(--sc-sub);
+    }
+
+    .sc-check-list strong { color: var(--sc-ink); }
+
+    .sc-check-mark {
+      width: 20px;
+      height: 20px;
+      border-radius: 6px;
+      background: var(--sc-green-soft);
+      color: var(--sc-green);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+
+    .sc-spec-panel {
+      background: var(--sc-surface);
+      border: 1px solid var(--sc-border);
+      border-radius: 14px;
+      padding: 20px;
+      box-shadow: var(--sc-shadow-md);
+      display: grid;
+      gap: 14px;
+    }
+
+    .sc-spec-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--sc-border);
+      font-size: 13px;
+    }
+
+    .sc-spec-row:last-child { padding-bottom: 0; border-bottom: none; }
+    .sc-spec-row span:first-child { color: var(--sc-sub); }
+    .sc-spec-row strong { font-family: var(--sc-mono); font-size: 12px; color: var(--sc-ink); }
+
+    /* Shortcuts Grid */
+    .sc-shortcuts-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+    }
+
+    .sc-shortcut-card {
+      background: var(--sc-surface);
+      border: 1px solid var(--sc-border);
+      border-radius: 10px;
+      padding: 14px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .sc-shortcut-card strong {
+      display: block;
+      font-size: 13.5px;
+      font-weight: 600;
+      color: var(--sc-ink);
+    }
+
+    .sc-shortcut-card small {
+      display: block;
+      font-size: 12px;
+      color: var(--sc-faint);
+    }
+
+    .sc-kbd-group {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      flex-shrink: 0;
+    }
+
+    .sc-kbd {
+      min-width: 26px;
+      height: 26px;
+      padding: 0 7px;
+      border-radius: 6px;
+      background: var(--sc-muted);
+      border: 1px solid var(--sc-border-strong);
+      box-shadow: 0 1px 0 var(--sc-border-strong);
+      font-family: var(--sc-mono);
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--sc-ink);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* Privacy & Stats Strip */
+    .sc-stats {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 14px;
+    }
+
+    .sc-stat-card {
+      background: var(--sc-surface);
+      border: 1px solid var(--sc-border);
+      border-radius: 12px;
+      padding: 18px;
+    }
+
+    .sc-stat-num {
+      font-size: 28px;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      color: var(--sc-ink);
+      line-height: 1.1;
+      margin-bottom: 6px;
+    }
+
+    .sc-stat-label {
+      font-size: 12.5px;
+      color: var(--sc-sub);
+    }
+
+    /* Direct Download Conversion Section */
+    .sc-download-card {
+      background: var(--sc-surface);
+      border: 1px solid var(--sc-border);
+      border-radius: 18px;
+      padding: 36px;
+      box-shadow: var(--sc-shadow-md);
+      display: grid;
+      grid-template-columns: 1.15fr 0.85fr;
+      gap: 32px;
+      align-items: center;
+    }
+
+    .sc-dl-brand {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 16px;
+    }
+
+    .sc-dl-icon {
+      width: 56px;
+      height: 56px;
+      border-radius: 14px;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.16);
+      display: block;
+    }
+
+    .sc-dl-title {
+      margin: 0;
+      font-size: 24px;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+    }
+
+    .sc-dl-meta {
+      font-size: 12.5px;
+      color: var(--sc-faint);
+      font-family: var(--sc-mono);
+    }
+
+    .sc-dl-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin: 20px 0 14px;
+    }
+
+    .sc-dl-steps {
+      background: var(--sc-muted);
+      border: 1px solid var(--sc-border);
+      border-radius: 12px;
+      padding: 18px;
+      display: grid;
+      gap: 12px;
+    }
+
+    .sc-step {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      font-size: 13px;
+      color: var(--sc-sub);
+    }
+
+    .sc-step-num {
+      width: 22px;
+      height: 22px;
+      border-radius: 6px;
+      background: var(--sc-surface);
+      border: 1px solid var(--sc-border);
+      color: var(--sc-ink);
+      font-family: var(--sc-mono);
+      font-size: 11px;
+      font-weight: 700;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .sc-code-box {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      background: var(--sc-surface);
+      border: 1px solid var(--sc-border);
+      border-radius: 8px;
+      padding: 8px 10px;
+      font-family: var(--sc-mono);
+      font-size: 11.5px;
+      color: var(--sc-ink);
+      overflow-x: auto;
+    }
+
+    /* Footer */
+    .sc-footer {
+      border-top: 1px solid var(--sc-border);
+      padding: 28px 0 36px;
+      font-size: 12.5px;
+      color: var(--sc-faint);
+    }
+
+    .sc-footer-inner {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .sc-dl-count { margin-top: 10px; font-size: 13px; font-weight: 600; color: var(--sc-sub); font-variant-numeric: tabular-nums; }
+
+    /* Download Confirmation Modal */
+    .sc-modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.52);
+      backdrop-filter: blur(4px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      z-index: 100;
+    }
+
+    .sc-modal-backdrop.is-open { display: flex; }
+
+    .sc-modal {
+      width: 100%;
+      max-width: 470px;
+      background: var(--sc-surface);
+      border: 1px solid var(--sc-border);
+      border-radius: 16px;
+      box-shadow: var(--sc-shadow-lg);
+      padding: 22px;
+      color: var(--sc-ink);
+    }
+
+    .sc-modal-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+
+    .sc-progress-track {
+      height: 6px;
+      border-radius: 999px;
+      background: var(--sc-muted);
+      overflow: hidden;
+      margin: 12px 0 16px;
+    }
+
+    .sc-progress-fill {
+      height: 100%;
+      width: 0%;
+      background: var(--sc-accent);
+      border-radius: 999px;
+      transition: width 650ms cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    /* Responsive */
+    @media (max-width: 900px) {
+      .sc-nav-links { display: none; }
+      .sc-bento { grid-template-columns: repeat(2, 1fr); }
+      .sc-spotlight, .sc-download-card { grid-template-columns: 1fr; }
+      .sc-shortcuts-grid { grid-template-columns: repeat(2, 1fr); }
+      .sc-stats { grid-template-columns: repeat(2, 1fr); }
+    }
+
+    @media (max-width: 580px) {
+      .sc-bento, .sc-shortcuts-grid, .sc-stats { grid-template-columns: 1fr; }
+      .sc-download-card { padding: 24px; }
+      .sc-shot-shell { padding: 10px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="sc-page" id="scPage" data-sc-theme="light">
+    <!-- Navigation -->
+    <header class="sc-nav">
+      <div class="sc-container sc-nav-inner">
+        <a href="#top" class="sc-brand">
+          <img class="sc-brand-icon" src="./assets/app-icon.png" alt="SnappyCapture icon" />
+          <span>SnappyCapture</span>
+          <span class="sc-ver-badge" data-version="v{v}">v0.1.0</span>
+        </a>
+
+        <nav class="sc-nav-links" aria-label="Primary">
+          <a href="#features">Features</a>
+          <a href="#cutroom">Cutroom</a>
+          <a href="#shortcuts">Shortcuts</a>
+          <a href="#privacy">Privacy</a>
+          <a href="#download">Download</a>
+        </nav>
+
+        <div class="sc-nav-actions">
+          <button class="sc-icon-btn" id="themeToggle" type="button" title="Switch Light / Dark appearance" aria-label="Switch appearance">
+            <svg id="themeIconSun" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.93 4.93l1.41 1.41m11.32 11.32 1.41 1.41M2 12h2m16 0h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+            <svg id="themeIconMoon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
+          </button>
+          <a href="https://github.com/simbrr/snappycapture/releases/latest/download/SnappyCapture.dmg" download class="sc-btn sc-btn-primary js-download-trigger">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Download
+          </a>
+        </div>
+      </div>
+    </header>
+
+    <!-- Hero -->
+    <section class="sc-hero" id="top">
+      <div class="sc-container">
+        <div class="sc-hero-top">
+          <div class="sc-eyebrow">
+            <span class="sc-dot-green"></span>
+            Native macOS 15+ · Pure Swift · Zero Dependencies
+          </div>
+          <h1>Capture, annotate, and polish. Right from your menu bar.</h1>
+          <p class="sc-hero-lead">
+            SnappyCapture brings area &amp; scrolling screenshots, on-device OCR, smart annotations, and the built-in <strong>Cutroom</strong> video editor into one lightweight macOS app — completely local by default.
+          </p>
+
+          <div class="sc-cta-row">
+            <a href="https://github.com/simbrr/snappycapture/releases/latest/download/SnappyCapture.dmg" download class="sc-btn sc-btn-primary sc-btn-lg js-download-trigger">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              Download for macOS
+              <span class="sc-cta-meta-pill" id="heroDmgMeta">.dmg · 4.4 MB</span>
+            </a>
+            <a href="#cutroom" class="sc-btn sc-btn-outline sc-btn-lg">
+              Explore Cutroom
+            </a>
+          </div>
+
+          <div class="sc-cta-sub">
+            <span>macOS 15 Sequoia &amp; newer</span>
+            <span>·</span>
+            <span>Apple Silicon (arm64)</span>
+            <span>·</span>
+            <span data-version="v{v}">v0.1.0</span>
+            <span>·</span>
+            <span>No account or cloud lock-in</span>
+          </div>
+        </div>
+
+        <!-- Real App Screenshots Stage -->
+        <div class="sc-stage-tabs">
+          <div class="sc-segmented" role="tablist" aria-label="Actual app screens">
+            <button class="sc-seg-btn" role="tab" aria-selected="true" data-stage="annotate" type="button">
+              Annotation Editor
+            </button>
+            <button class="sc-seg-btn" role="tab" aria-selected="false" data-stage="cutroom" type="button">
+              Cutroom
+            </button>
+            <button class="sc-seg-btn" role="tab" aria-selected="false" data-stage="quickaccess" type="button">
+              Quick Access &amp; Recording
+            </button>
+            <button class="sc-seg-btn" role="tab" aria-selected="false" data-stage="settings" type="button">
+              Settings
+            </button>
+          </div>
+        </div>
+
+        <!-- Screen 1: Real Annotation Editor -->
+        <div class="sc-stage-panel is-visible" data-panel="annotate">
+          <div class="sc-shot-shell">
+            <div class="sc-shot-frame">
+              <img class="sc-shot-img sc-img-light" src="./assets/screens/annotate-1380-light.png" alt="SnappyCapture Annotation Editor in Light appearance" />
+              <img class="sc-shot-img sc-img-dark" src="./assets/screens/annotate-1380-dark.png" alt="SnappyCapture Annotation Editor in Dark appearance" />
+            </div>
+            <div class="sc-shot-caption">
+              <span><strong>Annotation Editor</strong> — Arrows, shapes, Snap-to-Text highlighter, counter, spotlight, blur/pixelate, backgrounds, zoom &amp; pan.</span>
+              <span>Actual app screenshot · switches with Light/Dark toggle</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Screen 2: Real Cutroom Window -->
+        <div class="sc-stage-panel" data-panel="cutroom">
+          <div class="sc-shot-shell">
+            <div class="sc-shot-frame">
+              <img class="sc-shot-img sc-img-light" src="./assets/screens/cutroom-light.png" alt="SnappyCapture Cutroom editor in Light appearance" />
+              <img class="sc-shot-img sc-img-dark" src="./assets/screens/cutroom-dark.png" alt="SnappyCapture Cutroom editor in Dark appearance" />
+            </div>
+            <div class="sc-shot-caption">
+              <span><strong>Cutroom</strong> — Trim, cut, speed up (1.5×–8×), auto-zoom, movable camera, on-device captions, and MP4/HEVC/ProRes/GIF export.</span>
+              <span>Actual app screenshot · switches with Light/Dark toggle</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Screen 3: Real Quick Access + Recording Toolbar -->
+        <div class="sc-stage-panel" data-panel="quickaccess">
+          <div class="sc-shot-shell">
+            <div class="sc-shot-stack">
+              <div class="sc-shot-frame">
+                <img class="sc-shot-img sc-img-light" src="./assets/screens/recording-toolbar-light.png" alt="SnappyCapture Recording Toolbar in Light appearance" />
+                <img class="sc-shot-img sc-img-dark" src="./assets/screens/recording-toolbar-dark.png" alt="SnappyCapture Recording Toolbar in Dark appearance" />
+              </div>
+              <div class="sc-shot-frame" style="max-width:680px;">
+                <img class="sc-shot-img sc-img-light" src="./assets/screens/quick-access-light.png" alt="SnappyCapture Quick Access cards in Light appearance" />
+                <img class="sc-shot-img sc-img-dark" src="./assets/screens/quick-access-dark.png" alt="SnappyCapture Quick Access cards in Dark appearance" />
+              </div>
+            </div>
+            <div class="sc-shot-caption">
+              <span><strong>Recording Toolbar &amp; Quick Access Overlay</strong> — Choose Area/Window/Screen, Video/GIF/Cutroom, audio &amp; camera before recording, then Copy, Edit, Cutroom, or Save right from the overlay.</span>
+              <span>Actual app screenshots · switches with Light/Dark toggle</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Screen 4: Real Settings Window -->
+        <div class="sc-stage-panel" data-panel="settings">
+          <div class="sc-shot-shell">
+            <div class="sc-shot-frame" style="max-width:860px;margin:0 auto;">
+              <img class="sc-shot-img sc-img-light" src="./assets/screens/general-light.png" alt="SnappyCapture Settings window in Light appearance" />
+              <img class="sc-shot-img sc-img-dark" src="./assets/screens/general-dark.png" alt="SnappyCapture Settings window in Dark appearance" />
+            </div>
+            <div class="sc-shot-caption">
+              <span><strong>Native Settings</strong> — Configure post-capture actions, shortcuts, automatic presets, Quick Access, recording quality, and S3-compatible cloud uploads.</span>
+              <span>Actual app screenshot · switches with Light/Dark toggle</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Bento Features -->
+    <section class="sc-section" id="features">
+      <div class="sc-container">
+        <div class="sc-section-head">
+          <div class="sc-kicker">Core Capabilities</div>
+          <h2>Everything you expect from a flagship macOS capture tool.</h2>
+          <p>Designed around fast keyboard workflows, native SwiftUI polish, and zero third-party bloat.</p>
+        </div>
+
+        <div class="sc-bento">
+          <article class="sc-card">
+            <div class="sc-cat-icon sc-ic-blue">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2v4M18 2v4M2 6h4M2 18h4M18 22v-4M6 22v-4M22 6h-4M22 18h-4"/><rect x="6" y="6" width="12" height="12" rx="1"/></svg>
+            </div>
+            <h3>Precision &amp; Scrolling Capture</h3>
+            <p>Freeze-screen crosshair with magnifier, live dimensions, window transparency, and vertical or horizontal scrolling capture that handles sticky headers and sidebars.</p>
+            <div class="sc-tag-list">
+              <span class="sc-tag">Auto-scroll</span>
+              <span class="sc-tag">Self-timer</span>
+              <span class="sc-tag">Hide desktop icons</span>
+            </div>
+          </article>
+
+          <article class="sc-card">
+            <div class="sc-cat-icon sc-ic-violet">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+            </div>
+            <h3>Re-editable Annotation</h3>
+            <p>Arrows, shapes, numbered counters, spotlight, blur/pixelate, Snap-to-Text highlighting, wallpaper backgrounds, canvas zoom &amp; pan, and re-editable <code>.sshot</code> projects.</p>
+            <div class="sc-tag-list">
+              <span class="sc-tag">Snap-to-Text</span>
+              <span class="sc-tag">Auto Presets</span>
+              <span class="sc-tag">Retina → 1×</span>
+            </div>
+          </article>
+
+          <article class="sc-card">
+            <div class="sc-cat-icon sc-ic-green">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7V4h3M20 7V4h-3M4 17v3h3M20 17v3h-3"/><path d="M7 12h10M9 8h6M9 16h6"/></svg>
+            </div>
+            <h3>On-Device OCR &amp; History Search</h3>
+            <p>Extract text in 30+ languages or decode QR &amp; barcodes via Apple Vision. Instantly search your entire Capture History by text inside screenshots or video captions.</p>
+            <div class="sc-tag-list">
+              <span class="sc-tag">Apple Vision</span>
+              <span class="sc-tag">QR / Barcodes</span>
+              <span class="sc-tag">Instant Search</span>
+            </div>
+          </article>
+
+          <article class="sc-card">
+            <div class="sc-cat-icon sc-ic-amber">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 17v5"/><path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1Z"/></svg>
+            </div>
+            <h3>Quick Access &amp; Pinned Windows</h3>
+            <p>Floating corner overlay lets you copy, edit, pin, OCR, or drag captures into any app. Pin screenshots above all windows with opacity and click-through lock.</p>
+            <div class="sc-tag-list">
+              <span class="sc-tag">Drag &amp; Drop</span>
+              <span class="sc-tag">Click-through lock</span>
+              <span class="sc-tag">Auto-close</span>
+            </div>
+          </article>
+
+          <article class="sc-card">
+            <div class="sc-cat-icon sc-ic-rose">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3" fill="currentColor"/></svg>
+            </div>
+            <h3>Pro Recording &amp; GIFs</h3>
+            <p>Record H.264, HEVC, ProRes, or GIF with system audio, Apple voice-isolation mic cleanup, webcam bubble with background blur, keystrokes, and Pause/Resume.</p>
+            <div class="sc-tag-list">
+              <span class="sc-tag">Crash-safe chunks</span>
+              <span class="sc-tag">Mic meter</span>
+              <span class="sc-tag">DND Focus</span>
+            </div>
+          </article>
+
+          <article class="sc-card">
+            <div class="sc-cat-icon sc-ic-cyan">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/></svg>
+            </div>
+            <h3>Bring Your Own Cloud</h3>
+            <p>No subscription cloud required. Connect your own S3-compatible bucket — Cloudflare R2, AWS S3, Backblaze B2, or MinIO — for instant uploads and custom-domain links.</p>
+            <div class="sc-tag-list">
+              <span class="sc-tag">R2 / S3 / B2</span>
+              <span class="sc-tag">Custom domain</span>
+              <span class="sc-tag">URL scheme API</span>
+            </div>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- Cutroom Spotlight -->
+    <section class="sc-section" id="cutroom">
+      <div class="sc-container">
+        <div class="sc-spotlight">
+          <div>
+            <div class="sc-kicker">Cutroom Video Editor</div>
+            <h2 style="margin:0 0 12px;font-size:clamp(24px,3.2vw,34px);font-weight:800;letter-spacing:-0.03em;line-height:1.15;">Turn raw screen recordings into polished product demos.</h2>
+            <p style="margin:0;font-size:15px;color:var(--sc-sub);">
+              Record in Cutroom mode to capture screen, cursor path, and webcam as separate tracks — then edit everything nondestructively right inside SnappyCapture.
+            </p>
+
+            <ul class="sc-check-list">
+              <li>
+                <span class="sc-check-mark">✓</span>
+                <span><strong>Cut &amp; Speed Up anywhere:</strong> Trim ends, cut out sections, and speed up waits from 1.5× to 8× while keeping audio pitch natural.</span>
+              </li>
+              <li>
+                <span class="sc-check-mark">✓</span>
+                <span><strong>Auto-zoom &amp; smooth cursor:</strong> Auto-zoom follows clicks with motion blur, smooth custom pointer, and click highlights.</span>
+              </li>
+              <li>
+                <span class="sc-check-mark">✓</span>
+                <span><strong>Movable webcam track:</strong> Reposition, resize, reshape, or hide your camera at timed positions — it glides or fades between them.</span>
+              </li>
+              <li>
+                <span class="sc-check-mark">✓</span>
+                <span><strong>On-device captions (68 languages &amp; regional variants):</strong> Transcribe locally with Apple speech models (macOS 26+), style as Box, Outline, or Karaoke, edit text, and export <code>.srt</code>.</span>
+              </li>
+            </ul>
+          </div>
+
+          <div class="sc-spec-panel">
+            <div style="display:flex;align-items:center;justify-content:space-between;">
+              <strong style="font-size:14px;">Cutroom Export Engine</strong>
+              <span class="sc-ver-badge">⌘E Quick Export</span>
+            </div>
+            <div class="sc-spec-row">
+              <span>Output Formats</span>
+              <strong>MP4 · HEVC · ProRes · GIF</strong>
+            </div>
+            <div class="sc-spec-row">
+              <span>Resolutions</span>
+              <strong>Full size · 1080p · 720p</strong>
+            </div>
+            <div class="sc-spec-row">
+              <span>Aspect Ratios</span>
+              <strong>Original · 16:9 · 1:1 · 9:16</strong>
+            </div>
+            <div class="sc-spec-row">
+              <span>Crash Protection</span>
+              <strong>10-sec chunked recovery</strong>
+            </div>
+            <div class="sc-spec-row">
+              <span>Edit Persistence</span>
+              <strong>Auto-saved beside video</strong>
+            </div>
+            <div class="sc-spec-row">
+              <span>Transcription</span>
+              <strong>On-Device (macOS 26+) · SRT</strong>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Shortcuts -->
+    <section class="sc-section" id="shortcuts">
+      <div class="sc-container">
+        <div class="sc-section-head">
+          <div class="sc-kicker">Keyboard First</div>
+          <h2>Built for muscle memory.</h2>
+          <p>Every capture is one shortcut away — and fully customizable in Settings → Shortcuts or scriptable via <code>snappycapture://</code> URLs.</p>
+        </div>
+
+        <div class="sc-shortcuts-grid">
+          <div class="sc-shortcut-card">
+            <div>
+              <strong>Capture Area</strong>
+              <small>Space for window, ↩ fullscreen</small>
+            </div>
+            <div class="sc-kbd-group"><span class="sc-kbd">⌥</span><span class="sc-kbd">⇧</span><span class="sc-kbd">4</span></div>
+          </div>
+
+          <div class="sc-shortcut-card">
+            <div>
+              <strong>Capture Fullscreen</strong>
+              <small>The display under your pointer</small>
+            </div>
+            <div class="sc-kbd-group"><span class="sc-kbd">⌥</span><span class="sc-kbd">⇧</span><span class="sc-kbd">3</span></div>
+          </div>
+
+          <div class="sc-shortcut-card">
+            <div>
+              <strong>Capture Window</strong>
+              <small>Transparent shadow or preset bg</small>
+            </div>
+            <div class="sc-kbd-group"><span class="sc-kbd">⌥</span><span class="sc-kbd">⇧</span><span class="sc-kbd">5</span></div>
+          </div>
+
+          <div class="sc-shortcut-card">
+            <div>
+              <strong>Record Screen / Stop</strong>
+              <small>Opens the recording toolbar</small>
+            </div>
+            <div class="sc-kbd-group"><span class="sc-kbd">⌥</span><span class="sc-kbd">⇧</span><span class="sc-kbd">6</span></div>
+          </div>
+
+          <div class="sc-shortcut-card">
+            <div>
+              <strong>Scrolling Capture</strong>
+              <small>Vertical or horizontal auto-stitch</small>
+            </div>
+            <div class="sc-kbd-group"><span class="sc-kbd">⌥</span><span class="sc-kbd">⇧</span><span class="sc-kbd">7</span></div>
+          </div>
+
+          <div class="sc-shortcut-card">
+            <div>
+              <strong>Capture Text (OCR)</strong>
+              <small>On-device text &amp; QR copy</small>
+            </div>
+            <div class="sc-kbd-group"><span class="sc-kbd">⌥</span><span class="sc-kbd">⇧</span><span class="sc-kbd">2</span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Privacy & Architecture -->
+    <section class="sc-section" id="privacy">
+      <div class="sc-container">
+        <div class="sc-section-head">
+          <div class="sc-kicker">Architecture &amp; Privacy</div>
+          <h2>Pure Swift. Your captures stay on your Mac.</h2>
+          <p>Built exclusively on Apple frameworks — ScreenCaptureKit, Vision, AVFoundation, and Core Image — with no third-party dependencies, no accounts, and nothing uploaded unless you connect your own cloud bucket.</p>
+        </div>
+
+        <div class="sc-stats">
+          <div class="sc-stat-card">
+            <div class="sc-stat-num">0</div>
+            <div class="sc-stat-label">Third-party dependencies — 100% native Apple frameworks</div>
+          </div>
+          <div class="sc-stat-card">
+            <div class="sc-stat-num">9.5 MB</div>
+            <div class="sc-stat-label">Lightweight native macOS app</div>
+          </div>
+          <div class="sc-stat-card">
+            <div class="sc-stat-num">68</div>
+            <div class="sc-stat-label">On-device caption languages &amp; regional variants, incl. English &amp; Finnish (macOS 26+)</div>
+          </div>
+          <div class="sc-stat-card">
+            <div class="sc-stat-num">100%</div>
+            <div class="sc-stat-label">Local storage by default, with optional S3/R2 bucket upload</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Direct Download Section -->
+    <section class="sc-section" id="download">
+      <div class="sc-container">
+        <div class="sc-download-card">
+          <div>
+            <div class="sc-dl-brand">
+              <img class="sc-dl-icon" src="./assets/app-icon.png" alt="SnappyCapture App Icon" />
+              <div>
+                <h2 class="sc-dl-title">Download SnappyCapture</h2>
+                <div class="sc-dl-meta" id="dlMetaLine">Version 0.1.0 · macOS 15.0+ · Apple Silicon · 4.4 MB</div>
+              </div>
+            </div>
+
+            <p style="margin:0;font-size:14.5px;color:var(--sc-sub);">
+              Download the disk image, drag SnappyCapture into Applications, grant Screen Recording once, and you're ready to capture.
+            </p>
+
+            <div class="sc-dl-actions">
+              <a href="https://github.com/simbrr/snappycapture/releases/latest/download/SnappyCapture.dmg" download class="sc-btn sc-btn-primary sc-btn-lg js-download-trigger">
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                Download SnappyCapture.dmg
+              </a>
+            </div>
+            <div class="sc-dl-count" id="dlCount" hidden></div>
+          </div>
+
+          <div class="sc-dl-steps">
+            <div style="font-size:12.5px;font-weight:700;color:var(--sc-ink);">Quick 3-step setup</div>
+            <div class="sc-step">
+              <span class="sc-step-num">1</span>
+              <span>Open <strong style="color:var(--sc-ink);">SnappyCapture.dmg</strong> and drag SnappyCapture to your <strong style="color:var(--sc-ink);">Applications</strong> folder.</span>
+            </div>
+            <div class="sc-step">
+              <span class="sc-step-num">2</span>
+              <span>On first launch, grant <strong style="color:var(--sc-ink);">Screen &amp; System Audio Recording</strong> in System Settings, then relaunch.</span>
+            </div>
+            <div class="sc-step">
+              <span class="sc-step-num">3</span>
+              <span>Optionally grant <strong style="color:var(--sc-ink);">Accessibility</strong> for auto-scroll in scrolling capture and keystroke overlays.</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="sc-footer">
+      <div class="sc-container sc-footer-inner">
+        <div style="display:flex;align-items:center;gap:8px;">
+          <img src="./assets/app-icon.png" alt="" style="width:18px;height:18px;border-radius:4px;" />
+          <strong style="color:var(--sc-ink);">SnappyCapture</strong>
+          <span>· fi.snappycapture.app · Native macOS app</span>
+        </div>
+        <div style="display:flex;gap:16px;">
+          <a href="#features">Features</a>
+          <a href="#cutroom">Cutroom</a>
+          <a href="#shortcuts">Shortcuts</a>
+          <a href="#download" data-version="Download v{v}">Download v0.1.0</a>
+        </div>
+      </div>
+    </footer>
+
+    <!-- Download Confirmation Modal -->
+    <div class="sc-modal-backdrop" id="downloadModal" role="dialog" aria-modal="true" aria-labelledby="dlModalTitle">
+      <div class="sc-modal">
+        <div class="sc-modal-head">
+          <div style="display:flex;align-items:center;gap:12px;">
+            <img src="./assets/app-icon.png" alt="SnappyCapture" style="width:42px;height:42px;border-radius:10px;box-shadow:var(--sc-shadow-sm);" />
+            <div>
+              <h3 id="dlModalTitle" style="margin:0;font-size:17px;font-weight:700;">Downloading SnappyCapture…</h3>
+              <div style="font-size:12px;color:var(--sc-faint);font-family:var(--sc-mono);" id="dlModalFile">SnappyCapture.dmg · 4.4 MB</div>
+            </div>
+          </div>
+          <button class="sc-icon-btn" id="closeModalBtn" type="button" aria-label="Close">✕</button>
+        </div>
+
+        <div class="sc-progress-track">
+          <div class="sc-progress-fill" id="dlProgressFill"></div>
+        </div>
+
+        <p style="margin:0 0 14px;font-size:13px;color:var(--sc-sub);" id="dlModalStatus">
+          Your browser should start downloading the macOS disk image automatically. Open it and drag SnappyCapture into Applications.
+        </p>
+
+        <div class="sc-dl-steps" style="margin-bottom:14px;">
+          <div class="sc-step"><span class="sc-step-num">1</span><span>Drag <strong>SnappyCapture.app</strong> into Applications</span></div>
+          <div class="sc-step"><span class="sc-step-num">2</span><span>Grant <strong>Screen &amp; System Audio Recording</strong> on launch</span></div>
+          <div class="sc-step"><span class="sc-step-num">3</span><span>Press <code>⌥⇧4</code> to take your first capture</span></div>
+        </div>
+
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
+          <a href="https://github.com/simbrr/snappycapture/releases/latest/download/SnappyCapture.dmg" download class="sc-btn sc-btn-outline" id="dlDirectFallback">Direct link</a>
+          <button class="sc-btn sc-btn-primary" id="dlDoneBtn" type="button">Got it</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // The download is the latest GitHub Release of simbrr/snappycapture (same file name every release).
+    // Version, size and the download count are read from GitHub when the page loads; these are the fallbacks.
+    const DOWNLOAD_CONFIG = {
+      repo: "simbrr/snappycapture",
+      version: "0.1.0",
+      filename: "SnappyCapture.dmg",
+      url: "https://github.com/simbrr/snappycapture/releases/latest/download/SnappyCapture.dmg",
+      size: "4.4 MB",
+      minOS: "macOS 15.0+",
+      arch: "Apple Silicon",
+      previewMode: false
+    };
+
+    (function () {
+      const page = document.getElementById("scPage");
+      const themeToggle = document.getElementById("themeToggle");
+      const iconSun = document.getElementById("themeIconSun");
+      const iconMoon = document.getElementById("themeIconMoon");
+
+      function applyTheme(mode) {
+        page.setAttribute("data-sc-theme", mode);
+        iconSun.style.display = mode === "dark" ? "block" : "none";
+        iconMoon.style.display = mode === "dark" ? "none" : "block";
+      }
+
+      const prefersDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+      applyTheme(prefersDark ? "dark" : "light");
+
+      themeToggle.addEventListener("click", () => {
+        const next = page.getAttribute("data-sc-theme") === "dark" ? "light" : "dark";
+        applyTheme(next);
+      });
+
+      // Real screenshot tabs
+      const tabButtons = document.querySelectorAll("[data-stage]");
+      const stagePanels = document.querySelectorAll("[data-panel]");
+      tabButtons.forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const target = btn.getAttribute("data-stage");
+          tabButtons.forEach((b) => b.setAttribute("aria-selected", String(b === btn)));
+          stagePanels.forEach((p) => p.classList.toggle("is-visible", p.getAttribute("data-panel") === target));
+        });
+      });
+
+      // Direct Download wiring + confirmation modal
+      const modal = document.getElementById("downloadModal");
+      const progressFill = document.getElementById("dlProgressFill");
+      const closeModalBtn = document.getElementById("closeModalBtn");
+      const dlDoneBtn = document.getElementById("dlDoneBtn");
+      const dlDirectFallback = document.getElementById("dlDirectFallback");
+
+      document.querySelectorAll(".js-download-trigger").forEach((link) => {
+        link.setAttribute("href", DOWNLOAD_CONFIG.url);
+        link.setAttribute("download", DOWNLOAD_CONFIG.filename);
+        link.addEventListener("click", (e) => {
+          if (DOWNLOAD_CONFIG.previewMode) e.preventDefault();
+          openDownloadModal();
+        });
+      });
+      dlDirectFallback.setAttribute("href", DOWNLOAD_CONFIG.url);
+      dlDirectFallback.setAttribute("download", DOWNLOAD_CONFIG.filename);
+
+      // Live release info from GitHub: version, file size and total downloads.
+      fetch(`https://api.github.com/repos/${DOWNLOAD_CONFIG.repo}/releases?per_page=100`, { headers: { Accept: "application/vnd.github+json" } })
+        .then((r) => (r.ok ? r.json() : Promise.reject(r.status)))
+        .then((releases) => {
+          const published = releases.filter((r) => !r.draft && !r.prerelease);
+          const dmgs = (r) => (r.assets || []).filter((a) => a.name.endsWith(".dmg"));
+          const total = published.reduce((n, r) => n + dmgs(r).reduce((m, a) => m + a.download_count, 0), 0);
+          const latest = published[0];
+          const asset = latest && dmgs(latest).find((a) => a.name === DOWNLOAD_CONFIG.filename);
+          if (asset) {
+            const version = latest.tag_name.replace(/^v/, "");
+            const size = (asset.size / 1e6).toFixed(1) + " MB";
+            document.getElementById("dlMetaLine").textContent = `Version ${version} · ${DOWNLOAD_CONFIG.minOS} · ${DOWNLOAD_CONFIG.arch} · ${size}`;
+            document.getElementById("heroDmgMeta").textContent = `.dmg · ${size}`;
+            document.getElementById("dlModalFile").textContent = `${DOWNLOAD_CONFIG.filename} · ${size}`;
+            document.querySelectorAll("[data-version]").forEach((el) => { el.textContent = el.dataset.version.replace("{v}", version); });
+          }
+          if (total > 0) {
+            const el = document.getElementById("dlCount");
+            el.textContent = `${total.toLocaleString("en-US")} download${total === 1 ? "" : "s"} so far`;
+            el.hidden = false;
+          }
+        })
+        .catch(() => {});
+
+      function openDownloadModal() {
+        modal.classList.add("is-open");
+        progressFill.style.width = "0%";
+        requestAnimationFrame(() => {
+          setTimeout(() => { progressFill.style.width = "100%"; }, 60);
+        });
+      }
+
+      function closeModal() { modal.classList.remove("is-open"); }
+      closeModalBtn.addEventListener("click", closeModal);
+      dlDoneBtn.addEventListener("click", closeModal);
+      modal.addEventListener("click", (e) => { if (e.target === modal) closeModal(); });
+    })();
+  </script>
+</body>
+</html>
