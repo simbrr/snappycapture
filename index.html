@@ -1353,6 +1353,7 @@
     // Version, size and the download count are read from GitHub when the page loads; these are the fallbacks.
     const DOWNLOAD_CONFIG = {
       repo: "simbrr/snappycapture",
+      showCountFrom: 10,   // the download count stays hidden until there are at least this many
       version: "0.1.0",
       filename: "SnappyCapture.dmg",
       url: "https://github.com/simbrr/snappycapture/releases/latest/download/SnappyCapture.dmg",
@@ -1428,7 +1429,8 @@
             document.getElementById("dlModalFile").textContent = `${DOWNLOAD_CONFIG.filename} · ${size}`;
             document.querySelectorAll("[data-version]").forEach((el) => { el.textContent = el.dataset.version.replace("{v}", version); });
           }
-          // Shown from the first load, including 0; hidden only when GitHub can't be reached.
+          // Hidden until there are a few downloads (and when GitHub can't be reached).
+          if (total < DOWNLOAD_CONFIG.showCountFrom) return;
           const label = `${total.toLocaleString("en-US")} download${total === 1 ? "" : "s"}`;
           document.querySelectorAll(".js-dl-count").forEach((el) => { el.textContent = label; el.hidden = false; });
           document.querySelectorAll(".js-dl-count-sep").forEach((el) => { el.hidden = false; });
